@@ -2,9 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils.warp_utils import flow_warp
-from .correlation_package.correlation import Correlation
-# from .correlation_native import Correlation
+try:
+    from utils.warp_utils import flow_warp
+except:
+    from ..utils.warp_utils import flow_warp
+# from .correlation_package.correlation import Correlation
+from .correlation_native import Correlation
 
 def conv(in_planes, out_planes, kernel_size=3, stride=1, dilation=1, isReLU=True):
     if isReLU:
@@ -119,6 +122,7 @@ class PWCLite(nn.Module):
         self.upsample = cfg.upsample
         self.n_frames = cfg.n_frames
         self.reduce_dense = cfg.reduce_dense
+        self.device = cfg.device
 
         self.corr = Correlation(pad_size=self.search_range, kernel_size=1,
                                 max_displacement=self.search_range, stride1=1,
@@ -165,6 +169,8 @@ class PWCLite(nn.Module):
         b_size, _, h_x1, w_x1, = x1_pyramid[0].size()
         init_dtype = x1_pyramid[0].dtype
         init_device = x1_pyramid[0].device
+        # print (init_device)
+        # assert False
         flow = torch.zeros(b_size, 2, h_x1, w_x1, dtype=init_dtype,
                            device=init_device).float()
 
@@ -176,7 +182,7 @@ class PWCLite(nn.Module):
             else:
                 flow = F.interpolate(flow * 2, scale_factor=2,
                                      mode='bilinear', align_corners=True)
-                x2_warp = flow_warp(x2, flow)
+                x2_warp = flow_warp(x2, flow, device=self.device)
 
             # correlation
             out_corr = self.corr(x1, x2_warp)
@@ -220,8 +226,8 @@ class PWCLite(nn.Module):
             else:
                 flow = F.interpolate(flow * 2, scale_factor=2,
                                      mode='bilinear', align_corners=True)
-                x0_warp = flow_warp(x0, flow[:, :2])
-                x2_warp = flow_warp(x2, flow[:, 2:])
+                x0_warp = flow_warp(x0, flow[:, :2], device=self.device)
+                x2_warp = flow_warp(x2, flow[:, 2:], device=self.device)
 
             # correlation
             corr_10, corr_12 = self.corr(x1, x0_warp), self.corr(x1, x2_warp)

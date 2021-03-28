@@ -1,4 +1,5 @@
 examples/
+demo_*/
 
 models/correlation_package/build/
 models/correlation_package/correlation_cuda.egg-info/
